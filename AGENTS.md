@@ -137,11 +137,13 @@ only where a file must stay parseable by plain tools.
 | `http/src/main/java/forj/http/middleware/` | `Middlewares` (errors, requestId, accessLog, timeout, cors), `CorsPolicy` |
 | `http/src/main/java/forj/http/server/` | the `Backend` SPI: `Backend`, `Server`, `ServerConfig` |
 | `http/src/main/java/forj/http/testing/` | `HttpTest.run(...)`, `assertThat(response)`: running routes with no server |
+| `http-json/src/main/java/forj/http/json/` | `HttpJson`: `json(value)` (an `Entity`), `req.json()`, `encoder()`/`decoder()`; on forj-codec's `Codec` and `JsonBackend` |
 | `http/src/test/java/forj/http/` | tests written as users would write code: `RoutesTest`, `EntityTest`, `middleware/MiddlewaresTest`, `server/ServerConfigTest`; plus `ModelTest`, `VarTest`, `ForjBuildTest` (checks the forj build itself) |
 | `build.mill` | `PinnedJdk`, `ForjModule`, `HttpPublish`, `HttpTests`: copied from forj's recipe; keep in step with it |
 
-Planned (see the plan's "Order of work"): `http-json`, the bridge to forj-codec (step 6). Backends (Helidon first), the
-examples and the end-to-end benchmark live in `../plugins`, never here.
+Backends (Helidon first), the examples and the end-to-end benchmark live in `../plugins`, never
+here. The `forj-plugins` session works there: message it for changes, rather than
+editing `../plugins` from here.
 
 ### Design rules (don't undo these without asking)
 
@@ -150,6 +152,9 @@ examples and the end-to-end benchmark live in `../plugins`, never here.
   Instances and backends are chosen at compile time, through givens.
 - **`http` has no engine and no JSON dependency.** Engines come in through the `Backend` SPI;
   JSON through `http-json`, which an app opts into. So `Ok("hi")` stays `text/plain`.
+- **JSON is explicit at each use** (`json(user)`, `req.json()`), never a blanket
+  `given <A> EntityEncoder<A>`: an imported given is nearer than `EntityEncoder`'s own, so it
+  would turn every `String` into JSON.
 - **Everything is generic in `F`**, with `IO` the default. One request is one virtual thread,
   which runs the `F` program blocking. No reactive machinery, no callbacks, no thread hops.
 - **Responses are plain values, never `F`.** Effectful code maps into them:
@@ -199,8 +204,8 @@ examples and the end-to-end benchmark live in `../plugins`, never here.
 
 ### forj limits currently worked around here
 
-None right now. `../../forj/TODO.md` ("Found while building forj-http") lists the ones met so
-far, all fixed.
+None right now. `../../forj/TODO.md` ("Found while building forj-http", "Found in forj-http's
+JSON bridge") lists the ones met so far, all fixed.
 
 ### When forj gets in the way
 
@@ -225,16 +230,18 @@ Time-box hard javac debugging and write down what you found, rather than going d
   class.
 - **After forj republishes,** run `./mill clean` first. The snapshot jar keeps its path, and
   Mill tracks it by path, so stale classes can survive otherwise.
-- `./mill __.publishM2Local` publishes `forj:forj-http` (`0.1.0-SNAPSHOT`) to `~/.m2` for
-  `../plugins`, with a javadoc jar built from the exported sources. Javadoc errors (a broken
+- `./mill __.publishM2Local` publishes `forj:forj-http` and `forj:forj-http-json`
+  (`0.1.0-SNAPSHOT`) to `~/.m2` for `../plugins`, with javadoc jars built from the exported
+  sources. `http-json` needs forj-codec's `forj-json` there first
+  (`cd ../codec && ./mill __.publishM2Local`). Javadoc errors (a broken
   `{@link}`) fail it; warnings don't.
 - **Docs' look:** `docStyle` in `build.mill` (copied from forj's recipe) bakes
   critium.github.io's `javadoc.css` into the javadoc jar. Offline, or while the site isn't
   live, it falls back to javadoc's default look with a warning;
   `FORJ_DOCS_STYLE=/Users/pule/Projects/critium/critium.github.io` uses the local checkout.
-- **Hosted docs:** `bin/publish-docs` (copied from forj; `MODULES=("http:api")`,
+- **Hosted docs:** `bin/publish-docs` (copied from forj; `MODULES=("http:api" "http-json:json")`,
   `PAGES=("README.md")`) builds the GitHub Pages tree in a temp dir: `README.md` is the front
-  page, with a tab bar, and the javadoc sits under `/api/`. Pages must deploy from the
+  page, with a tab bar, and the javadoc sits under `/api/` and `/json/`. Pages must deploy from the
   `gh-pages` branch, `/ (root)`. `--push` force-pushes `gh-pages` to
   https://critium.github.io/forj-http/: **only with the user's OK**, and the same for enabling
   Pages. Publish order across repos: forj, codec, server, plugins.

@@ -143,3 +143,15 @@ object http extends ForjModule with HttpPublish {
 
   object test extends MavenTests with HttpTests
 }
+
+/**
+ * The JSON bridge, on forj-codec: `Ok(json(user))` and `User u = req.json();`. Its own module so
+ * forj-http stays JSON-free and an app opts in by depending on it.
+ */
+object `http-json` extends ForjModule with HttpPublish {
+  def artifactName = "forj-http-json"
+  def moduleDeps = Seq(http)
+  def mvnDeps = super.mvnDeps() ++ Seq(mvn"forj:forj-json:$forjVersion")
+
+  object test extends MavenTests with HttpTests
+}

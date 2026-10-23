@@ -21,7 +21,7 @@
 set -euo pipefail
 
 # Mill module -> path of its javadoc on the site
-MODULES=("http:api")
+MODULES=("http:api" "http-json:json")
 # Markdown published next to the javadoc; README.md becomes the front page
 PAGES=("README.md")
 # root-relative: /<repo>/ is on the site's domain, so this is critium.github.io/javadoc.css

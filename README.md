@@ -5,11 +5,12 @@ function composition, codecs are type classes, and everything is generic in `F` 
 the default). Each request runs on its own virtual thread, with no reactive machinery. The full
 plan is in `../planning/lets-make-something-meaningfully-warm-lark.md`, next to this repo's checkout.
 
-API docs (javadoc): https://critium.github.io/forj-http/api/
+API docs (javadoc): https://critium.github.io/forj-http/api/, and for the JSON bridge
+https://critium.github.io/forj-http/json/
 
-**Status:** `forj-http` is complete for milestone 1 and published locally (steps 2 and 3): the
-model, routing, entity codecs, middleware, test helpers and the `Backend` SPI. Next: the Helidon
-backend in `../plugins` (step 4).
+**Status:** `forj-http` and `forj-http-json` are published locally: the model, routing, entity
+codecs, middleware, test helpers, the `Backend` SPI and the JSON bridge. A Helidon backend and a
+runnable users example live in `../plugins` (forj-http-plugins). Next: the end-to-end benchmark.
 
 ```java
 import static forj.http.Dsl.*;
@@ -48,6 +49,11 @@ try (Server server = backend.start(ServerConfig.fromEnvironment(), app)) { serve
   `User u = req.as()` picks an `EntityDecoder`. A bad body throws `DecodeFailure` (400, or 415
   for an unknown charset). Your own encoders are givens next to your types. No JSON here: that's
   `http-json`, explicitly.
+- **JSON** (`http-json`, `import static forj.http.json.HttpJson.*`): `Ok(json(user))` encodes
+  with the type's forj-codec `Codec` (`record User(...) derives Codec`), and
+  `NewUser body = req.json();` decodes, with a 400 problem saying where bad JSON went
+  wrong and 415 for a non-JSON `Content-Type`. It's explicit at each use, so `Ok("hi")` stays
+  `text/plain`.
 - **Middleware** (`forj.http.middleware.Middlewares`), each generic in `F`:
   - `errors()` / `errors(report)` (`MonadError`): `HttpFailure`s keep their status and
     detail; anything else is a 500 whose cause is reported, never sent;
@@ -65,18 +71,20 @@ try (Server server = backend.start(ServerConfig.fromEnvironment(), app)) { serve
 | Module | Artifact | Contents |
 |---|---|---|
 | `http` | `forj-http` (published) | model, routing, middleware, entity codecs, `forj.http.testing`, `Backend` SPI; no engine, no JSON |
-| `http-json` (planned) | `forj-http-json` | the `json(...)` / `req.json()` bridge to forj-codec |
+| `http-json` | `forj-http-json` (published) | the `json(...)` / `req.json()` bridge to forj-codec |
 
 Backends (Helidon first), the examples and the end-to-end benchmark live in
 `../plugins` (forj-http-plugins).
 
 ## Building
 
-forj-http builds against forj published to `~/.m2`, on the JDK build forj is pinned to.
+forj-http builds against forj (and, for `http-json`, forj-codec) published to `~/.m2`, on the JDK
+build forj is pinned to.
 
 ```sh
 bin/fetch-jdk                                   # once: the pinned JDK 28 EA in .jdk/
 (cd ../../forj && ./mill __.publishM2Local)     # after any forj change
+(cd ../codec && ./mill __.publishM2Local)       # after any forj-codec change
 ./mill __.test
 ./mill __.publishM2Local                        # for downstream repos (plugins/)
 ```
