@@ -182,6 +182,21 @@ editing `../plugins` from here.
   must not depend on the order where it can avoid it (the access log reads the request id
   from the response header, so it works outside `requestId()`).
 
+### Performance (what the benchmarks say, and what to keep)
+
+From forj-http-plugins' end-to-end benchmark (`../plugins/docs/benchmarks.md`, 2026-10-23):
+- **forj-http on Helidon is within 1% of raw Helidon SE**, about 105k req/s with each server
+  capped at 4 cores, for plaintext, JSON (forj-codec or hand-written) and a user lookup.
+  Routing, the request/response conversion, `IO` and forj-codec don't show. Keep it that way:
+  the trie match, flat-array headers and attributes, and `Method.of` returning shared constants are
+  on every request.
+- **The client was still the ceiling** in that run (oha on the same machine), so 1% is an upper
+  bound on what's visible, not a measured overhead.
+- **`json(...)` encodes to a `byte[]` and sends a `Content-Length`: keep that as the default.**
+  Streaming JSON to the connection (`Json.encode(value, out)` in a `Body.writer`, so chunked)
+  was 41% slower on small bodies (63k vs 107k req/s). The cause hasn't been investigated yet
+  (deferred); don't document one, and don't make streaming the default without measuring.
+
 ### Style
 
 - **Use forj where it reads better, which is most places:**
