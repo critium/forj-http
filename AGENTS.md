@@ -227,7 +227,17 @@ Time-box hard javac debugging and write down what you found, rather than going d
   Mill tracks it by path, so stale classes can survive otherwise.
 - `./mill __.publishM2Local` publishes `forj:forj-http` (`0.1.0-SNAPSHOT`) to `~/.m2` for
   `../plugins`, with a javadoc jar built from the exported sources. Javadoc errors (a broken
-  `{@link}`) fail it; warnings don't. Publish order across repos: forj, codec, server, plugins.
+  `{@link}`) fail it; warnings don't.
+- **Docs' look:** `docStyle` in `build.mill` (copied from forj's recipe) bakes
+  critium.github.io's `javadoc.css` into the javadoc jar. Offline, or while the site isn't
+  live, it falls back to javadoc's default look with a warning;
+  `FORJ_DOCS_STYLE=/Users/pule/Projects/critium/critium.github.io` uses the local checkout.
+- **Hosted docs:** `bin/publish-docs` (copied from forj; `MODULES=("http:api")`,
+  `PAGES=("README.md")`) builds the GitHub Pages tree in a temp dir: `README.md` is the front
+  page, with a tab bar, and the javadoc sits under `/api/`. Pages must deploy from the
+  `gh-pages` branch, `/ (root)`. `--push` force-pushes `gh-pages` to
+  https://critium.github.io/forj-http/: **only with the user's OK**, and the same for enabling
+  Pages. Publish order across repos: forj, codec, server, plugins.
 
 ### Working rules
 

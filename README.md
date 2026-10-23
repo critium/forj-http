@@ -5,6 +5,8 @@ function composition, codecs are type classes, and everything is generic in `F` 
 the default). Each request runs on its own virtual thread, with no reactive machinery. The full
 plan is in [`../planning`](../planning/lets-make-something-meaningfully-warm-lark.md).
 
+API docs (javadoc): https://critium.github.io/forj-http/api/
+
 **Status:** `forj-http` is complete for milestone 1 and published locally (steps 2 and 3): the
 model, routing, entity codecs, middleware, test helpers and the `Backend` SPI. Next: the Helidon
 backend in `../plugins` (step 4).
