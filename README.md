@@ -1,9 +1,9 @@
 # forj-http
 
-An http4s-style server framework for [forj](../../forj): routes are values, middleware is
+An http4s-style server framework for [forj](https://github.com/critium/forj): routes are values, middleware is
 function composition, codecs are type classes, and everything is generic in `F` (with `IO` as
 the default). Each request runs on its own virtual thread, with no reactive machinery. The full
-plan is in [`../planning`](../planning/lets-make-something-meaningfully-warm-lark.md).
+plan is in `../planning/lets-make-something-meaningfully-warm-lark.md`, next to this repo's checkout.
 
 API docs (javadoc): https://critium.github.io/forj-http/api/
 
