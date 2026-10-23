@@ -4,7 +4,8 @@
 # - README.md is the front page, and PAGES come along (GitHub Pages renders the markdown with
 #   Jekyll; links between .md files keep working);
 # - each module's javadoc sits under its path (MODULES);
-# - every README page has a tab bar linking to them.
+# - every README page has a tab bar linking to them, and every page loads the site's shared nav
+#   bar (/nav.js), which links critium and all the projects.
 #
 #   bin/publish-docs            builds the site into a temp dir and prints where; pushes nothing
 #   bin/publish-docs --push     ...and force-pushes it to origin's gh-pages branch
@@ -25,6 +26,8 @@ MODULES=("http:api")
 PAGES=("README.md")
 # root-relative: /<repo>/ is on the site's domain, so this is critium.github.io/javadoc.css
 STYLE_URL="/javadoc.css"
+# the site's shared nav bar: draws the links to critium and every project, on hosted pages only
+NAV_SCRIPT='<script src="/nav.js" defer></script>'
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 cd "$ROOT"
@@ -48,6 +51,8 @@ for m in "${MODULES[@]}"; do
   mkdir -p "$WORK/$path"
   cp -R "$docs/." "$WORK/$path/"
   printf '@import url("%s");\n' "$STYLE_URL" > "$WORK/$path/resource-files/javadoc.css"
+  # the site's shared nav bar (critium and every project), on every hosted javadoc page
+  find "$WORK/$path" -name '*.html' -exec perl -pi -e "s{</head>}{$NAV_SCRIPT\n</head>}" {} +
 done
 for page in "${PAGES[@]}"; do
   if [ -e "$page" ]; then cp -R "$page" "$WORK/"; fi
@@ -87,6 +92,7 @@ cat > "$WORK/_layouts/default.html" <<HTML
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% if page.title and page.title != site.title %}{{ page.title }} · {% endif %}$repo</title>
 <link rel="stylesheet" href="/readme.css">
+$NAV_SCRIPT
 </head>
 <body>
 <nav class="tabline">$tabs <span class="fill"></span><a class="right" href="https://critium.github.io/">critium</a> <a class="right" href="https://github.com/critium/$repo">github</a></nav>
