@@ -16,8 +16,8 @@ public final class Route<F<_>> {
      * needs no instance (see {@link Routes}).
      */
     @FunctionalInterface
-    interface Endpoint<G<_>> {
-        G<Response> run(Request request, Object[] captures, Applicative<G> ap);
+    interface Endpoint<F<_>> {
+        F<Response> run(Request request, Object[] captures, Applicative<F> ap);
     }
 
     final Method method;

@@ -8,8 +8,8 @@ import java.util.List;
  * <pre>{@code
  * Path1<Long> user = Path.of("/users").then(LongVar);
  * Routes<IO> routes = Routes.of(
- *     GET("/health").respond(req -> Response.of(Status.OK)),
- *     GET(user).to((req, id) -> repo.find(id).map(u -> ...)));
+ *     GET("/health").respond(req -> Ok("up")),
+ *     GET(user).to((req, id) -> repo.find(id).map(u -> Ok(u))));
  * }</pre>
  *
  * Handlers come in two named forms, never overloads (Java can't pick between overloads of
@@ -172,6 +172,124 @@ public final class Dsl {
 
     public static <A, B, C, D> On4<A, B, C, D> DELETE(Path4<A, B, C, D> path) {
         return route(Method.DELETE, path);
+    }
+
+    // ------------------------------------------------------------------ responses
+
+    /*
+     * Plain values, not F: effectful code maps into them (`repo.find(id).map(u -> Ok(u))`).
+     * With a body, the encoder for its type is found at compile time: Ok("hi") is text/plain,
+     * Ok(json(user)) is application/json.
+     */
+
+    /** A response with {@code status} and {@code body}, encoded by its {@link EntityEncoder}. */
+    public static <A> Response response(Status status, A body)(using EntityEncoder<A> encoder) {
+        return Response.of(status).withEntity(body)(using encoder);
+    }
+
+    public static Response Ok() {
+        return Response.of(Status.OK);
+    }
+
+    public static <A> Response Ok(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.OK, body)(using encoder);
+    }
+
+    public static Response Created() {
+        return Response.of(Status.CREATED);
+    }
+
+    public static <A> Response Created(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.CREATED, body)(using encoder);
+    }
+
+    public static Response Accepted() {
+        return Response.of(Status.ACCEPTED);
+    }
+
+    public static <A> Response Accepted(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.ACCEPTED, body)(using encoder);
+    }
+
+    public static Response BadRequest() {
+        return Response.of(Status.BAD_REQUEST);
+    }
+
+    public static <A> Response BadRequest(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.BAD_REQUEST, body)(using encoder);
+    }
+
+    public static Response Unauthorized() {
+        return Response.of(Status.UNAUTHORIZED);
+    }
+
+    public static <A> Response Unauthorized(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.UNAUTHORIZED, body)(using encoder);
+    }
+
+    public static Response Forbidden() {
+        return Response.of(Status.FORBIDDEN);
+    }
+
+    public static <A> Response Forbidden(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.FORBIDDEN, body)(using encoder);
+    }
+
+    public static Response NotFound() {
+        return Response.of(Status.NOT_FOUND);
+    }
+
+    public static <A> Response NotFound(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.NOT_FOUND, body)(using encoder);
+    }
+
+    public static Response Conflict() {
+        return Response.of(Status.CONFLICT);
+    }
+
+    public static <A> Response Conflict(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.CONFLICT, body)(using encoder);
+    }
+
+    public static Response UnprocessableContent() {
+        return Response.of(Status.UNPROCESSABLE_CONTENT);
+    }
+
+    public static <A> Response UnprocessableContent(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.UNPROCESSABLE_CONTENT, body)(using encoder);
+    }
+
+    public static Response InternalServerError() {
+        return Response.of(Status.INTERNAL_SERVER_ERROR);
+    }
+
+    public static <A> Response InternalServerError(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.INTERNAL_SERVER_ERROR, body)(using encoder);
+    }
+
+    public static Response ServiceUnavailable() {
+        return Response.of(Status.SERVICE_UNAVAILABLE);
+    }
+
+    public static <A> Response ServiceUnavailable(A body)(using EntityEncoder<A> encoder) {
+        return response(Status.SERVICE_UNAVAILABLE, body)(using encoder);
+    }
+
+    public static Response NoContent() {
+        return Response.of(Status.NO_CONTENT);
+    }
+
+    /** 303 to {@code location}: where a client goes after a POST. */
+    public static Response SeeOther(String location) {
+        return Response.of(Status.SEE_OTHER).withHeader("Location", location);
+    }
+
+    public static Response Found(String location) {
+        return Response.of(Status.FOUND).withHeader("Location", location);
+    }
+
+    public static Response MovedPermanently(String location) {
+        return Response.of(Status.MOVED_PERMANENTLY).withHeader("Location", location);
     }
 
     // ------------------------------------------------------------------ handlers

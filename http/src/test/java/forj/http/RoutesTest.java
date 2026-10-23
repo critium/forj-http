@@ -46,7 +46,7 @@ class RoutesTest {
         assertThat(run(routes, Request.get("/users/1/extra"))).hasStatus(Status.NOT_FOUND);
         assertThat(run(routes, Request.get("/users"))).hasStatus(Status.NOT_FOUND);
         assertThat(run(routes, Request.get("/users/1/"))).hasStatus(Status.NOT_FOUND);
-        assertTrue(routes.apply(Request.get("/nope"), IO.concurrent).isEmpty(), "routes alone don't answer what they don't match");
+        assertTrue(routes.apply(Request.get("/nope")).isEmpty(), "routes alone don't answer what they don't match");
     }
 
     @Test
@@ -108,7 +108,7 @@ class RoutesTest {
         AtomicInteger calls = new AtomicInteger();
         Routes<IO> routes = Routes.of(GET("/count").to(req -> IO.delay(() -> text(s"n=${calls.incrementAndGet()}"))));
 
-        HttpApp<IO> app = HttpApp.of(routes);
+        HttpApp<IO> app = routes.orNotFound();
         IO<Response> pending = IO.narrow(app.run(Request.get("/count")));
         assertEquals(0, calls.get());
         assertEquals("n=1", pending.unsafeRunSync().body().text());
@@ -132,10 +132,9 @@ class RoutesTest {
 
     @Test
     void routeMiddlewareWrapsOnlyItsGroupAndKeepsTheTrie() {
-        Middleware<IO> adminTag = tag("admin");
-        Routes<IO> admin = Routes.<IO>of(GET("/admin/stats").respond(req -> text("stats"))).through(adminTag);
+        Routes<IO> admin = Routes.<IO>of(GET("/admin/stats").respond(req -> text("stats"))).through(tag("admin"));
         Routes<IO> open = Routes.of(GET(USER).respond((req, id) -> text("user")));
-        HttpApp<IO> app = HttpApp.of(admin.orElse(open));
+        HttpApp<IO> app = admin.orElse(open).orNotFound();
 
         assertThat(run(app, Request.get("/admin/stats"))).hasHeader("X-Tag", "admin");
         assertThat(run(app, Request.get("/users/1"))).hasBody("user").hasNoHeader("X-Tag");
@@ -145,9 +144,8 @@ class RoutesTest {
     @Test
     void middlewareCanPassValuesToHandlersAsAttributes() {
         Attributes.Key<String> user = Attributes.Key.of("user");
-        Middleware<IO> auth = bearer(user);
         Routes<IO> routes = Routes.<IO>of(
-                GET("/me").respond(req -> text(s"hi ${req.attribute(user).orElseThrow()}"))).through(auth);
+                GET("/me").respond(req -> text(s"hi ${req.attribute(user).orElseThrow()}"))).through(bearer(user));
 
         assertThat(run(routes, Request.get("/me"))).hasStatus(Status.UNAUTHORIZED);
         assertThat(run(routes, Request.get("/me").withHeader("Authorization", "Bearer ana"))).hasBody("hi ana");
@@ -156,11 +154,14 @@ class RoutesTest {
     @Test
     void appMiddlewareComposesOutsideIn() {
         Routes<IO> routes = Routes.of(GET("/").respond(req -> text("ok")));
+        HttpApp<IO> chained = routes.orNotFound().through(tag("inner")).through(tag("outer"));
+        assertEquals(List.of("inner", "outer"), run(chained, Request.get("/")).headers().all("X-Tag"),
+                "outer sees the response last");
+
         Middleware<IO> inner = tag("inner");
-        Middleware<IO> outer = tag("outer");
-        HttpApp<IO> app = HttpApp.of(routes).through(inner.andThen(outer));
-        Response res = run(app, Request.get("/"));
-        assertEquals(List.of("inner", "outer"), res.headers().all("X-Tag"), "outer sees the response last");
+        HttpApp<IO> composed = routes.orNotFound().through(inner.andThen(tag("outer")));
+        assertEquals(List.of("inner", "outer"), run(composed, Request.get("/")).headers().all("X-Tag"),
+                "a.andThen(b) is the same as through(a) then through(b)");
     }
 
     // ------------------------------------------------------------------ generic in F

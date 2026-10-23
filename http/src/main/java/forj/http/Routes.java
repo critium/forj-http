@@ -19,12 +19,12 @@ import java.util.stream.Collectors;
  *   <li>{@link #of} builds them; {@code F} comes from where the result goes
  *       ({@code Routes<IO> routes = Routes.of(...)}, or a {@code return}). Building needs no
  *       instances: the effect's {@code Applicative} is asked for only when the routes are run
- *       ({@link HttpApp#of}), where {@code F} is already known. A group of only
+ *       ({@link #orNotFound}, {@link #apply}), where {@code F} is already known. A group of only
  *       {@code respond} routes has no {@code F} in its arguments, so when it's chained
  *       straight away ({@code Routes.<IO>of(...).through(auth)}) name it.</li>
  *   <li>{@link #orElse} merges two groups into one trie; {@link #through} wraps a group's
  *       handlers in middleware and keeps the trie, so wrapped groups still merge.</li>
- *   <li>{@link HttpApp#of} makes them an app that answers the rest with 404;
+ *   <li>{@link #orNotFound} makes them an app that answers the rest with 404;
  *       {@link #apply} answers only matching requests.</li>
  * </ul>
  *
@@ -90,17 +90,13 @@ public final class Routes<F<_>> {
         return new Routes<>(wrapped);
     }
 
-    /**
-     * The response for a matching request (405 if only the method is wrong), or empty.
-     * {@code ap} lifts pure handlers and the 405. Most code runs routes through
-     * {@link HttpApp#of} instead, which finds {@code ap} itself.
-     */
-    public Optional<F<Response>> apply(Request request, Applicative<F> ap) {
+    /** The response for a matching request (405 if only the method is wrong), or empty. */
+    public Optional<F<Response>> apply(Request request)(using Applicative<F> ap) {
         return Optional.ofNullable(find(request, ap));
     }
 
-    /** {@link HttpApp#of}: an app answering requests that match no route with 404. */
-    HttpApp<F> orNotFound(Applicative<F> ap) {
+    /** An app answering requests that match no route with 404: what a backend serves. */
+    public HttpApp<F> orNotFound()(using Applicative<F> ap) {
         F<Response> notFound = ap.pure(Response.of(Status.NOT_FOUND));
         return request -> {
             F<Response> response = find(request, ap);
@@ -129,12 +125,12 @@ public final class Routes<F<_>> {
         return s"Routes${describe()}";
     }
 
-    private static final class Entry<G<_>> {
+    private static final class Entry<F<_>> {
         final Method method;
         final List<Segment> segments;
-        final Route.Endpoint<G> endpoint;
+        final Route.Endpoint<F> endpoint;
 
-        Entry(Method method, List<Segment> segments, Route.Endpoint<G> endpoint) {
+        Entry(Method method, List<Segment> segments, Route.Endpoint<F> endpoint) {
             this.method = method;
             this.segments = segments;
             this.endpoint = endpoint;
@@ -142,21 +138,21 @@ public final class Routes<F<_>> {
     }
 
     /** An entry where its path ends, with its priority (its index among the routes). */
-    private record Leaf<G>(Entry<G> entry, int priority) {}
+    private record Leaf<F>(Entry<F> entry, int priority) {}
 
-    private static final class Node<G<_>> {
-        Map<String, Node<G>> literals;                 // null until needed
+    private static final class Node<F<_>> {
+        Map<String, Node<F>> literals;                 // null until needed
         final List<Var<?>> vars = new ArrayList<>(0);
-        final List<Node<G>> varNodes = new ArrayList<>(0);
-        Map<Method, Leaf<G>> endpoints;                // null until needed
+        final List<Node<F>> varNodes = new ArrayList<>(0);
+        Map<Method, Leaf<F>> endpoints;                // null until needed
 
-        void insert(Entry<G> e, int priority, int depth) {
+        void insert(Entry<F> e, int priority, int depth) {
             if (depth == e.segments.size()) {
                 if (endpoints == null) endpoints = new LinkedHashMap<>();
                 endpoints.putIfAbsent(e.method, new Leaf<>(e, priority));
                 return;
             }
-            Node<G> child;
+            Node<F> child;
             switch (e.segments.get(depth)) {
                 case Segment.Literal l -> {
                     if (literals == null) literals = new HashMap<>();
@@ -181,11 +177,11 @@ public final class Routes<F<_>> {
      * wins outright; otherwise every typed child that parses is explored, and the match from
      * the route given first wins.
      */
-    private static final class Matcher<G<_>> {
+    private static final class Matcher<F<_>> {
         final Method method;
         final List<String> segments;
         final Object[] captures;
-        Entry<G> best;
+        Entry<F> best;
         int bestPriority = Integer.MAX_VALUE;
         Object[] bestCaptures;
         Set<Method> allowed; // methods of paths that matched under another method
@@ -197,10 +193,10 @@ public final class Routes<F<_>> {
         }
 
         /** Whether a route matched at or below {@code node}; the winner is in {@link #best}. */
-        boolean search(Node<G> node, int depth, int captured) {
+        boolean search(Node<F> node, int depth, int captured) {
             if (depth == segments.size()) {
                 if (node.endpoints == null) return false;
-                Leaf<G> leaf = node.endpoints.get(method);
+                Leaf<F> leaf = node.endpoints.get(method);
                 if (leaf != null) {
                     if (leaf.priority() < bestPriority) {
                         best = leaf.entry();
@@ -215,7 +211,7 @@ public final class Routes<F<_>> {
             }
             String segment = segments.get(depth);
             if (node.literals != null) {
-                Node<G> child = node.literals.get(segment);
+                Node<F> child = node.literals.get(segment);
                 if (child != null && search(child, depth + 1, captured)) return true;
             }
             boolean matched = false;

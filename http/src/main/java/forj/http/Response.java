@@ -56,6 +56,13 @@ public record Response(Status status, Headers headers, Body body) {
         return withBody(Body.of(bytes));
     }
 
+    /** {@code value} as the body, with its encoder's {@code Content-Type}. */
+    public <A> Response withEntity(A value)(using EntityEncoder<A> encoder) {
+        Entity entity = encoder.encode(value);
+        Response r = withBody(entity.body());
+        return entity.contentType() == null ? r : r.withHeader("Content-Type", entity.contentType().toString());
+    }
+
     @Override
     public String toString() {
         return s"Response($status)";

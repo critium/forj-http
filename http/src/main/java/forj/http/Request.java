@@ -61,6 +61,16 @@ public record Request(Method method, Uri uri, Headers headers, Body body, Attrib
         return attributes.get(key);
     }
 
+    /**
+     * The body decoded as an {@code A}: {@code User u = req.as();}, or {@code req.<User>as()}.
+     * Reads the body, blocking.
+     *
+     * @throws DecodeFailure if it isn't a valid {@code A}
+     */
+    public <A> A as()(using EntityDecoder<A> decoder) {
+        return decoder.decode(body, headers);
+    }
+
     /** The first value of query parameter {@code name}. */
     public Optional<String> query(String name) {
         return uri.query().get(name);
@@ -101,6 +111,13 @@ public record Request(Method method, Uri uri, Headers headers, Body body, Attrib
 
     public Request withBody(byte[] bytes) {
         return withBody(Body.of(bytes));
+    }
+
+    /** {@code value} as the body, with its encoder's {@code Content-Type}. */
+    public <A> Request withEntity(A value)(using EntityEncoder<A> encoder) {
+        Entity entity = encoder.encode(value);
+        Request r = withBody(entity.body());
+        return entity.contentType() == null ? r : r.withHeader("Content-Type", entity.contentType().toString());
     }
 
     public Request withAttributes(Attributes attributes) {

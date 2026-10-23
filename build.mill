@@ -44,6 +44,27 @@ trait ForjModule extends MavenModule with PinnedJdk {
   def javacOptions = Task {
     withFlags(super.javacOptions(), Seq("--enable-preview", "--source", "28", "-Xplugin:Forj"))
   }
+  // With annotation processors (JMH, Lombok, ...), javac loads plugins from the processor
+  // path only, not the classpath, so the forj plugin goes there too (otherwise:
+  // "plug-in not found: Forj").
+  def annotationProcessorsResolvedMvnDeps = Task {
+    val processors = super.annotationProcessorsResolvedMvnDeps()
+    if (processors.isEmpty) processors
+    else processors ++ compileClasspath().filter(_.path.last.startsWith("forj-plugin-"))
+  }
+  // The javadoc tool parses sources without the forj plugin, so forj syntax fails there. Until
+  // forj can hand javadoc its desugared sources (see forj's TODO), publish a placeholder that
+  // points at the sources jar.
+  def docJar = Task {
+    val jar = Task.dest / "javadoc.jar"
+    val out = new java.util.jar.JarOutputStream(os.write.outputStream(jar))
+    try {
+      out.putNextEntry(new java.util.zip.ZipEntry("README.txt"))
+      out.write("Written in forj syntax, which the javadoc tool can't parse yet: see the sources jar.\n".getBytes("UTF-8"))
+      out.closeEntry()
+    } finally out.close()
+    PathRef(jar)
+  }
 }
 
 trait HttpPublish extends PublishModule {

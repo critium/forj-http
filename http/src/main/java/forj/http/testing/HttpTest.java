@@ -29,7 +29,7 @@ public final class HttpTest {
 
     /** Runs {@code routes} as an app: a request no route matches gets 404. */
     public static <F<_>> Response run(Routes<F> routes, Request request)(using Effect<F> effect) {
-        return run(HttpApp.of(routes)(using effect), request)(using effect);
+        return run(routes.orNotFound(), request);
     }
 
     /** Assertions on a response. */
