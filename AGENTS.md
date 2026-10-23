@@ -132,7 +132,7 @@ only where a file must stay parseable by plain tools.
 
 | Path | Contents |
 |---|---|
-| `http/src/main/java/forj/http/` | the model (`Request`, `Response`, `Method`, `Status`, `Headers`, `Uri`, `Query`, `Body`, `Attributes`), routing (`Path`, `Path0`..`Path4`, `Segment`, `Var`, `Route`, `Routes`, `Dsl`), `HttpApp`, `Middleware` |
+| `http/src/main/java/forj/http/` | the model (`Request`, `Response`, `Method`, `Status`, `Headers`, `Uri`, `Query`, `Body` with `writer`/`streaming`, `Attributes`), routing (`Path`, `Path0`..`Path4`, `Segment`, `Var`, `Route`, `Routes`, `Dsl`), `HttpApp`, `Middleware` |
 | `http/src/main/java/forj/http/` (entities) | `MediaType`, `Entity`, `EntityEncoder`/`EntityDecoder` (with their default givens), `HttpFailure`, `DecodeFailure`, `Problem` (RFC 9457), `RequestContext`; `Dsl` also has the response helpers (`Ok(...)`, ...) |
 | `http/src/main/java/forj/http/middleware/` | `Middlewares` (errors, requestId, accessLog, timeout, cors), `CorsPolicy` |
 | `http/src/main/java/forj/http/server/` | the `Backend` SPI: `Backend`, `Server`, `ServerConfig` |
@@ -193,9 +193,23 @@ From forj-http-plugins' end-to-end benchmark (`../plugins/docs/benchmarks.md`, 2
 - **The client was still the ceiling** in that run (oha on the same machine), so 1% is an upper
   bound on what's visible, not a measured overhead.
 - **`json(...)` encodes to a `byte[]` and sends a `Content-Length`: keep that as the default.**
-  Streaming JSON to the connection (`Json.encode(value, out)` in a `Body.writer`, so chunked)
-  was 41% slower on small bodies (63k vs 107k req/s). The cause hasn't been investigated yet
-  (deferred); don't document one, and don't make streaming the default without measuring.
+- **A flush before the end of a response is expensive.** The benchmark's streaming row
+  (`Json.encode(value, out)` in a `Body.writer`) was 41% slower on small bodies (63k vs 107k
+  req/s). Cause, confirmed with a no-flush codec build (2026-10-23): `Json.encode` flushes
+  when it's done, and Helidon, on a flush before its stream is closed, sends the headers
+  at once and goes chunked (three writes) instead of one write with a computed
+  `Content-Length`. The fix (the user's design "K") is in `Body`, not in codec:
+  - `Body.writer` hands its writer a `Body.Guarded` stream that ignores `flush()` and
+    `close()`, so any encoder, flushing or not, is fast here;
+  - `Body.streaming` passes `flush()` through, for SSE and other early sends; it only changes
+    latency, not memory (a large body streams as the server's buffer fills either way);
+  - backends must not flush before closing their stream (`Backend`'s javadoc).
+  Don't undo the guard to "let encoders flush": measure first. Confirmed by forj-plugins'
+  rerun: the `Body.writer` JSON row is back to ~107k req/s, with `Content-Length` up to ~8 KB.
+- **Open: large chunked bodies are slow.** At 22.9 KB, a chunked `Body.writer` serves 43k
+  req/s against 69k for `json(...)`, with a long tail beyond p99. Not understood yet
+  (`../plugins/docs/benchmarks-for-agents.md`); don't document a cause. The README tells
+  users to prefer `json(...)` or a known length meanwhile.
 
 ### Style
 

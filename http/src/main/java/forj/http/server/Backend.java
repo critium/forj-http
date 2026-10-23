@@ -19,7 +19,11 @@ import forj.typeclass.Effect;
  *       limited to {@link ServerConfig#maxBodyBytes()}; a larger body is answered with 413
  *       before or while it's read;</li>
  *   <li>the response body is written with {@link forj.http.Body#writeTo}, using
- *       {@link forj.http.Body#length()} for {@code Content-Length} when it's known;</li>
+ *       {@link forj.http.Body#length()} for {@code Content-Length} when it's known; then the
+ *       backend closes its stream, with no flush before that, so an engine that buffers can
+ *       still send a small body of unknown length in one write with a {@code Content-Length}
+ *       ({@code writeTo} already keeps a {@link forj.http.Body#writer writer}'s own flushes
+ *       from reaching it);</li>
  *   <li>if running the app throws (no {@code errors()} middleware, or a failure inside it), the
  *       client gets a bare 500 and the error is logged; a connection never just closes.</li>
  * </ul>

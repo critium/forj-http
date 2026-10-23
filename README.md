@@ -58,8 +58,12 @@ try (Server server = HelidonBackend.create().start(ServerConfig.fromEnvironment(
   value's type (`String` is `text/plain; charset=utf-8`, `byte[]` is octet-stream);
   `User u = req.as()` picks an `EntityDecoder`. A bad body throws `DecodeFailure` (400, or 415
   for an unknown charset). Your own encoders are givens next to your types. No JSON here: that's
-  `http-json`, explicitly. A body can also be streamed (`Body.writer`); it's sent chunked,
-  since its length isn't known.
+  `http-json`, explicitly.
+- **Written bodies:** `Body.writer(out -> ..., length)` writes to the connection when the
+  response is sent. Its flushes are ignored, so a small body still goes out in one write with
+  a `Content-Length`, and a large one streams as the server's buffer fills.
+  `Body.streaming(out -> ...)` sends what's written at each `flush()`, for server-sent
+  events and other progressive output.
 - **JSON** (`http-json`, `import static forj.http.json.HttpJson.*`), on
   [forj-codec](https://github.com/critium/forj-codec):
   - `Ok(json(user))` encodes with the type's `Codec` (`record User(...) derives Codec`), as
@@ -90,8 +94,12 @@ machine). The same run puts http4s on Ember 24–35% behind with twice the p99 l
 Boot MVC 10–28% behind. The method, every number and the caveats are in forj-http-plugins'
 [benchmarks](https://github.com/critium/forj-http-plugins/blob/main/docs/benchmarks.md).
 
-JSON sent as bytes (`json(...)`) is the fast path. Streaming JSON straight to the connection was
-41% slower on small bodies (63k against 107k requests/s), so streaming is for large bodies.
+`json(...)` encodes to bytes and sends a `Content-Length`. Encoding straight to the connection
+in a `Body.writer` is as fast for small bodies (about 107k requests/s): up to about 8 KB it
+goes out in one write with a `Content-Length`, since the writer's flushes are deferred until it
+returns. Larger bodies of unknown length are sent chunked, and that's slower: at 23 KB, 43k
+requests/s against 69k for `json(...)`. When the body fits in memory, prefer `json(...)` or a
+`Body.writer` with its length.
 
 ## Modules
 

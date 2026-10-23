@@ -108,6 +108,52 @@ class ModelTest {
         assertSame(Body.EMPTY, Body.of(new byte[0]));
     }
 
+    /** A stream that records what reaches it, as a server's connection stream would see it. */
+    static final class Recording extends ByteArrayOutputStream {
+        final List<String> events = new java.util.ArrayList<>();
+
+        @Override
+        public void flush() {
+            events.add(s"flush after ${size()}");
+        }
+
+        @Override
+        public void close() {
+            events.add("close");
+        }
+    }
+
+    @Test
+    void aWritersFlushesAndClosesDontReachTheConnection() throws Exception {
+        Recording out = new Recording();
+        Body.writer(w -> {
+            w.write("{\"a\":".getBytes(StandardCharsets.UTF_8));
+            w.flush();
+            w.write('1');
+            w.write("}".getBytes(StandardCharsets.UTF_8), 0, 1);
+            w.flush();
+            w.close();
+        }, -1).writeTo(out);
+        assertEquals("{\"a\":1}", out.toString(StandardCharsets.UTF_8));
+        assertEquals(List.of(), out.events, "the backend flushes and closes, once, when the writer is done");
+    }
+
+    @Test
+    void aStreamingBodysFlushesDo() throws Exception {
+        Recording out = new Recording();
+        Body body = Body.streaming(w -> {
+            w.write("data: 1\n\n".getBytes(StandardCharsets.UTF_8));
+            w.flush();
+            w.write("data: 2\n\n".getBytes(StandardCharsets.UTF_8));
+            w.flush();
+            w.close();
+        });
+        body.writeTo(out);
+        assertEquals(-1, body.length());
+        assertEquals("data: 1\n\ndata: 2\n\n", out.toString(StandardCharsets.UTF_8));
+        assertEquals(List.of("flush after 9", "flush after 18"), out.events, "flushes reach it as written; close still doesn't");
+    }
+
     @Test
     void requestsAndResponsesCopyOnWrite() {
         Attributes.Key<Integer> n = Attributes.Key.of("n");
