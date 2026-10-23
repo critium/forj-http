@@ -78,14 +78,11 @@ class ServerConfigTest {
     @Test
     void aBackendRunsTheAppWithTheEffectFoundAtTheCallSite() throws Exception {
         Routes<IO> routes = Routes.of(GET("/").respond(req -> Ok("served")));
-        InMemoryBackend memory = new InMemoryBackend();
-        // Called through the interface: forj reports the implementation's override and the
-        // interface method as an ambiguity when called on the class (see forj's TODO).
-        Backend backend = memory;
+        InMemoryBackend backend = new InMemoryBackend();
         try (Server server = backend.start(ServerConfig.defaults().withPort(0), routes.orNotFound())) {
             assertEquals(0, server.port());
-            assertEquals("served", memory.handle.apply(Request.get("/")).body().text());
-            assertEquals(404, memory.handle.apply(Request.get("/nope")).status().code());
+            assertEquals("served", backend.handle.apply(Request.get("/")).body().text());
+            assertEquals(404, backend.handle.apply(Request.get("/nope")).status().code());
         }
     }
 }

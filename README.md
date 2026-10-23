@@ -47,11 +47,11 @@ try (Server server = backend.start(ServerConfig.fromEnvironment(), app)) { serve
   for an unknown charset). Your own encoders are givens next to your types. No JSON here: that's
   `http-json`, explicitly.
 - **Middleware** (`forj.http.middleware.Middlewares`), each generic in `F`:
-  - `errors()` / `errorsWith(report)` (`MonadError`): `HttpFailure`s keep their status and
+  - `errors()` / `errors(report)` (`MonadError`): `HttpFailure`s keep their status and
     detail; anything else is a 500 whose cause is reported, never sent;
   - `requestId()` (`Functor`): keeps a sensible incoming `X-Request-Id` or makes one, echoes
     it, and puts a `RequestContext` on the request for handlers to use as a context parameter;
-  - `accessLog()` / `accessLogTo(sink)` (`Sync`): `GET /users/7 200 1.4ms id=...`;
+  - `accessLog()` / `accessLog(sink)` (`Sync`): `GET /users/7 200 1.4ms id=...`;
   - `timeout(limit)` (`Concurrent`): 503 at the limit, and the handler is cancelled;
   - `cors(policy)` (`Applicative`): preflights answered, responses decorated.
 - **Backends** implement `forj.http.server.Backend`: `start(ServerConfig, HttpApp<F>)(using

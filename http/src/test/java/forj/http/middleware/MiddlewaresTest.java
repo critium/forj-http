@@ -46,7 +46,7 @@ class MiddlewaresTest {
     void errorsBecomeProblemsWithoutLeakingCauses() {
         reported.clear();
         Routes<IO> routes = failing();
-        HttpApp<IO> app = routes.orNotFound().through(errorsWith((req, e) -> reported.add(e)));
+        HttpApp<IO> app = routes.orNotFound().through(errors((req, e) -> reported.add(e)));
 
         for (String path : List.of("/thrown", "/raised")) {
             assertThat(run(app, Request.get(path)))
@@ -62,7 +62,7 @@ class MiddlewaresTest {
     void expectedFailuresKeepTheirStatusAndDetail() {
         reported.clear();
         Routes<IO> routes = failing();
-        HttpApp<IO> app = routes.orNotFound().through(errorsWith((req, e) -> reported.add(e)));
+        HttpApp<IO> app = routes.orNotFound().through(errors((req, e) -> reported.add(e)));
 
         assertThat(run(app, Request.get("/conflict"))).hasStatus(Status.CONFLICT).hasBodyContaining("already exists");
         assertThat(run(app, Request.post("/decode").withHeader("Content-Type", "text/plain; charset=nope").withBody("x")))
@@ -75,7 +75,7 @@ class MiddlewaresTest {
     @Test
     void errorsWorkInAnyEffectWithMonadError() {
         Routes<Callable> routes = failing();
-        HttpApp<Callable> app = routes.orNotFound().through(errorsWith((req, e) -> {}));
+        HttpApp<Callable> app = routes.orNotFound().through(errors((req, e) -> {}));
         assertThat(run(app, Request.get("/thrown"))).hasStatus(500);
         assertThat(run(app, Request.get("/conflict"))).hasStatus(409);
     }
@@ -120,7 +120,7 @@ class MiddlewaresTest {
     void accessLogWritesOneLinePerRequestIncludingFailures() {
         List<String> lines = new CopyOnWriteArrayList<>();
         Routes<IO> routes = failing();
-        HttpApp<IO> app = routes.orNotFound().through(requestId()).through(accessLogTo(lines::add));
+        HttpApp<IO> app = routes.orNotFound().through(requestId()).through(accessLog(lines::add));
 
         run(app, Request.get("/ok").withHeader("X-Request-Id", "r1"));
         assertThrows(IllegalStateException.class, () -> run(app, Request.get("/raised")));
@@ -199,10 +199,10 @@ class MiddlewaresTest {
         List<String> lines = new CopyOnWriteArrayList<>();
         Routes<IO> routes = failing();
         HttpApp<IO> app = routes.orElse(WHO).orNotFound()
-                .through(errorsWith((req, e) -> {}))
+                .through(errors((req, e) -> {}))
                 .through(timeout(Duration.ofSeconds(5)))
                 .through(requestId())
-                .through(accessLogTo(lines::add));
+                .through(accessLog(lines::add));
 
         Response r = run(app, Request.get("/thrown").withHeader("X-Request-Id", "z9"));
         assertThat(r).hasStatus(500).hasHeader("X-Request-Id", "z9");

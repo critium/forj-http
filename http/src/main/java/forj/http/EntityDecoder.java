@@ -13,7 +13,7 @@ import java.util.function.Function;
  *
  * <p>Decoding blocks while it reads the body, which is fine on a request's virtual thread. A
  * body that can't be decoded throws {@link DecodeFailure}, which the
- * {@link forj.http.middleware.Middlewares#errors() errors} middleware answers with a 400 (or
+ * {@link forj.http.middleware.Middlewares#errors errors} middleware answers with a 400 (or
  * 415) problem response.
  */
 @FunctionalInterface

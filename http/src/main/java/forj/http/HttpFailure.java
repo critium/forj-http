@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /**
  * An expected failure with an HTTP answer: throw it (or raise it in {@code F}) from a handler,
- * and the {@link forj.http.middleware.Middlewares#errors() errors} middleware responds with its
+ * and the {@link forj.http.middleware.Middlewares#errors errors} middleware responds with its
  * status and message as a problem response.
  *
  * <p>It's an outcome, not a bug, so it carries no stack trace, which makes it cheap to throw.

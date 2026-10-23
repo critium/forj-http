@@ -52,19 +52,18 @@ trait ForjModule extends MavenModule with PinnedJdk {
     if (processors.isEmpty) processors
     else processors ++ compileClasspath().filter(_.path.last.startsWith("forj-plugin-"))
   }
-  // The javadoc tool parses sources without the forj plugin, so forj syntax fails there. Until
-  // forj can hand javadoc its desugared sources (see forj's TODO), publish a placeholder that
-  // points at the sources jar.
-  def docJar = Task {
-    val jar = Task.dest / "javadoc.jar"
-    val out = new java.util.jar.JarOutputStream(os.write.outputStream(jar))
-    try {
-      out.putNextEntry(new java.util.zip.ZipEntry("README.txt"))
-      out.write("Written in forj syntax, which the javadoc tool can't parse yet: see the sources jar.\n".getBytes("UTF-8"))
-      out.closeEntry()
-    } finally out.close()
-    PathRef(jar)
+  // javadoc parses sources without the plugin, so it reads them as the plugin's text stage
+  // rewrites them (F<A> as forj.Kind<F, A>, using clauses as @forj.Using parameters)
+  def forjExportedSources = Task {
+    val plugin = compileClasspath().filter(_.path.last.startsWith("forj-plugin-")).map(_.path)
+    os.proc(
+      javaHome().get.path / "bin" / "java", forjCompilerJvmOptions,
+      "-cp", plugin.mkString(java.io.File.pathSeparator),
+      "forj.plugin.ExportSources", Task.dest, allSources().map(_.path)
+    ).call(stdout = os.Inherit)
+    PathRef(Task.dest)
   }
+  def docSources = Task { Seq(forjExportedSources()) }
 }
 
 trait HttpPublish extends PublishModule {

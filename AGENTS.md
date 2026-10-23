@@ -189,20 +189,18 @@ examples and the end-to-end benchmark live in `../plugins`, never here.
 - **Middleware and helpers are generic in `F`** and ask for the weakest capability:
   `<F<_>> Middleware<F> tag(String v)(using Functor<F> functor)`, not `Middleware<IO>`.
 - 4-space indentation (forj plans a move to 2 spaces; follow it when it happens).
+- **Javadoc is built from the plain-Java view** of the sources (`forjExportedSources` in
+  `build.mill`): `F<A>` is `forj.Kind<F, A>` and `using` instances are ordinary parameters.
+  So link a method that has a `using` clause by name only, `{@link Middlewares#errors errors}`,
+  never with a parameter list like `#errors()`: that signature doesn't exist there, and
+  `./mill __.publishM2Local` fails with "reference not found".
 - Javadoc on public types and non-trivial methods, saying *why*. One-line comments for
   surprises. Match the surrounding code.
 
 ### forj limits currently worked around here
 
-Logged in `../../forj/TODO.md` ("Found in forj-http step 3"); drop the workaround when fixed.
-
-- **No `using` overloads where one's `using` count equals the other's argument count**
-  (`errors()` next to `errors(report)`): forj takes the argument for the instance. Give the
-  variant its own name (`errorsWith`, `accessLogTo`).
-- **Call an overridden `using` method through the interface type** (`Backend backend = new
-  HelidonBackend();`): on the class, forj reports the override and the interface method as
-  ambiguous.
-- **No javadoc from forj sources:** `ForjModule.docJar` publishes a placeholder.
+None right now. `../../forj/TODO.md` ("Found while building forj-http") lists the ones met so
+far, all fixed.
 
 ### When forj gets in the way
 
@@ -228,7 +226,8 @@ Time-box hard javac debugging and write down what you found, rather than going d
 - **After forj republishes,** run `./mill clean` first. The snapshot jar keeps its path, and
   Mill tracks it by path, so stale classes can survive otherwise.
 - `./mill __.publishM2Local` publishes `forj:forj-http` (`0.1.0-SNAPSHOT`) to `~/.m2` for
-  `../plugins`. Publish order across repos: forj, codec, server, plugins.
+  `../plugins`, with a javadoc jar built from the exported sources. Javadoc errors (a broken
+  `{@link}`) fail it; warnings don't. Publish order across repos: forj, codec, server, plugins.
 
 ### Working rules
 

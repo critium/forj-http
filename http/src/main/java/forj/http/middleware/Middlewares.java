@@ -46,9 +46,9 @@ public final class Middlewares {
 
     // ------------------------------------------------------------------ errors
 
-    /** {@link #errorsWith}, reporting unexpected errors to the {@code forj.http.errors} logger. */
+    /** {@code errors(report)}, reporting unexpected errors to the {@code forj.http.errors} logger. */
     public static <F<_>> Middleware<F> errors()(using MonadError<F, Throwable> errors) {
-        return errorsWith(Middlewares::logError)(using errors);
+        return errors(Middlewares::logError)(using errors);
     }
 
     /**
@@ -60,11 +60,8 @@ public final class Middlewares {
      *       the client.</li>
      * </ul>
      * Catches both errors raised in {@code F} and exceptions a handler throws directly.
-     *
-     * <p>(A separate name, not an {@code errors} overload: forj resolves {@code errors(lambda)}
-     * to the no-argument overload, taking the lambda for its instance. See forj's TODO.)
      */
-    public static <F<_>> Middleware<F> errorsWith(BiConsumer<Request, Throwable> report)(using MonadError<F, Throwable> errors) {
+    public static <F<_>> Middleware<F> errors(BiConsumer<Request, Throwable> report)(using MonadError<F, Throwable> errors) {
         return app -> req -> {
             F<Response> response;
             try {
@@ -122,18 +119,17 @@ public final class Middlewares {
 
     // ------------------------------------------------------------------ access log
 
-    /** {@link #accessLogTo} the {@code forj.http.access} logger, at INFO. */
+    /** {@code accessLog(sink)} to the {@code forj.http.access} logger, at INFO. */
     public static <F<_>> Middleware<F> accessLog()(using Sync<F> sync) {
-        return accessLogTo(line -> ACCESS.log(System.Logger.Level.INFO, line))(using sync);
+        return accessLog(line -> ACCESS.log(System.Logger.Level.INFO, line))(using sync);
     }
 
     /**
      * One line per request, once it's answered, timed from when the response starts being
      * computed: {@code GET /users/7 200 1.4ms id=3f9c...}. A failure that reaches it is logged as
-     * {@code error} and passed on unchanged. (Not an {@code accessLog} overload, for the same
-     * reason as {@link #errorsWith}.)
+     * {@code error} and passed on unchanged.
      */
-    public static <F<_>> Middleware<F> accessLogTo(Consumer<String> sink)(using Sync<F> sync) {
+    public static <F<_>> Middleware<F> accessLog(Consumer<String> sink)(using Sync<F> sync) {
         return app -> req -> forj {
             start <- sync.delay(System::nanoTime);
             result <- app.run(req).attempt();

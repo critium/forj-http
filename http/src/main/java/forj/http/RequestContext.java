@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * What every part of a request's handling may need to know about the request: its id, for
  * logs and for the calls it makes downstream. The
- * {@link forj.http.middleware.Middlewares#requestId() requestId} middleware sets it; a
+ * {@link forj.http.middleware.Middlewares#requestId requestId} middleware sets it; a
  * handler makes it a local given and everything below asks for it with {@code using}, so
  * nothing threads it by hand:
  *
